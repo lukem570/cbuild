@@ -16,12 +16,14 @@ enum class Action {
     eBuild,
     eRun,
     eInstall,
+    eClean,
 };
 
 std::unordered_map<std::string, Action> actionMap = {
     {"help",    Action::eHelp},
     {"build",   Action::eBuild},
     {"run",     Action::eRun},
+    {"clean",   Action::eClean},
     {"install", Action::eInstall},
 };
 
@@ -39,6 +41,14 @@ void build() {
     if (!fs::exists("./build.cpp")) {
         printf("No 'build.cpp' found in project\n");
         exit(0);
+    }
+
+    if (!fs::exists("./build")) {
+        fs::create_directory("build");
+    }
+
+    if (!fs::exists("./build/.cbuild")) {
+        fs::create_directory("build/.cbuild");
     }
 
     if (fs::exists("./build/.cbuild/libcbuild" SHARED_LIB_EXT)) {
@@ -80,12 +90,13 @@ void build() {
     buildFunc();
 
     freeLibrary(handle);
+}
 
-    printf("Built!\n");
+void clean() {
+    fs::remove_all("build");
 }
 
 int main(int argc, char* argv[]) {
-
 
     if (argc < 2) {
         printf("Expected an action run 'cbuild help' for a list of commands\n");
@@ -108,6 +119,9 @@ int main(int argc, char* argv[]) {
         } break;
         case Action::eRun: {
 
+        } break;
+        case Action::eClean: {
+            clean();
         } break;
         case Action::eInstall: {
 
