@@ -1,0 +1,7 @@
+[package]
+version="0.0.1"
+name="cbuild"
+description="Build system for c++"
+
+[build]
+include="include"
