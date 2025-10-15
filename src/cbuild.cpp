@@ -2,27 +2,25 @@
 
 namespace CBuild {
 
-    void Shared::includeDirectory(std::string path) {
+    void Binary::includeDirectory(std::string path) {
         includedDirectories.push_back(path);
     }
 
-    void Shared::linkDirectory(std::string path) {
+    void Binary::linkDirectory(std::string path) {
         linkedDirectories.push_back(path);
     }
 
-    void Shared::linkLibrary(std::string alias) {
+    void Binary::linkLibrary(std::string alias) {
         linkedLibraries.push_back(alias);
     }
 
-    int Shared::compile() {
+    int Binary::compile() {
         std::stringstream command;
 
         command << options.compiler.alias << " ";
         command << options.compiler.inputFlag << entry << " ";
-        command << options.compiler.outputFlag 
-                << options.output << "/lib" << alias << SHARED_LIB_EXT << " ";
+        command << options.compiler.outputFlag << options.output << output() << " ";
         command << options.compiler.add << " ";
-        command << options.compiler.sharedFlag << " ";
 
         for (auto& linkedLibrary : linkedLibraries) {
             command << options.compiler.linkLibraryFlag << linkedLibrary << " ";
@@ -39,5 +37,17 @@ namespace CBuild {
         int ret = system(command.str().c_str());
         
         return ret;
+    }
+
+    std::string Shared::output() {
+        return "/lib" + alias + SHARED_LIB_EXT + " " + options.compiler.sharedFlag;
+    }
+
+    std::string Static::output() {
+        return "/lib" + alias + STATIC_LIB_EXT + " " + options.compiler.staticFlag;
+    }
+
+    std::string Executable::output() {
+        return "/" + alias + EXECUTABLE_EXT;
     }
 }

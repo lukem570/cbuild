@@ -3,7 +3,7 @@ ENTRY_LIB=src/cbuild.cpp
 ENTRY_CLI=src/main.cpp
 INCLUDE=include
 
-init: $(BUILD) $(BUILD)/.cbuild
+init: clean $(BUILD) $(BUILD)/.cbuild
 
 	# make the cbuild shared lib
 	g++ -shared $(ENTRY_LIB) -o $(BUILD)/libcbuild.so -I$(INCLUDE) -fPIC

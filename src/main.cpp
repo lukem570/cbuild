@@ -41,13 +41,14 @@ void build() {
         exit(0);
     }
 
-    // TODO: make less gross
-    if (!fs::exists("./build/.cbuild/libcbuild" SHARED_LIB_EXT)) {
-        fs::copy(
-            removeExtension(getExecutablePath()) + "/libcbuild" SHARED_LIB_EXT, 
-            "./build/.cbuild"
-        );
+    if (fs::exists("./build/.cbuild/libcbuild" SHARED_LIB_EXT)) {
+        fs::remove("./build/.cbuild/libcbuild" SHARED_LIB_EXT);
     }
+
+    fs::copy(
+        removeExtension(getExecutablePath()) + "/libcbuild" SHARED_LIB_EXT, 
+        "./build/.cbuild"
+    );
 
     CBuild::Shared build(
         "./build.cpp", 
