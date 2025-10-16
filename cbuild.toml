@@ -6,3 +6,5 @@ include="include"
 
 [build]
 include="include"
+
+[dependencies]
