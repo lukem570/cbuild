@@ -2,6 +2,7 @@ BUILD=build
 ENTRY_LIB=src/cbuild.cpp
 ENTRY_CLI=src/main.cpp
 INCLUDE=include
+TOML_INCLUDE=mod/toml/include
 
 init: clean $(BUILD) $(BUILD)/.cbuild
 
@@ -9,7 +10,7 @@ init: clean $(BUILD) $(BUILD)/.cbuild
 	g++ -shared $(ENTRY_LIB) -o $(BUILD)/libcbuild.so -I$(INCLUDE) -fPIC
 	
 	# make cbuild 
-	g++ $(ENTRY_CLI) -o $(BUILD)/cbuild -I$(INCLUDE) -L$(BUILD) -lcbuild -Wl,-rpath=./$(BUILD)
+	g++ $(ENTRY_CLI) -o $(BUILD)/cbuild -I$(INCLUDE) -I$(TOML_INCLUDE) -L$(BUILD) -lcbuild -Wl,-rpath=./$(BUILD)
 	
 	# run the build step
 	./$(BUILD)/cbuild build

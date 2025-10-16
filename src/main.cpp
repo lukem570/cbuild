@@ -3,9 +3,10 @@
 #include <string>
 #include <unordered_map>
 #include <sstream>
+#include <filesystem>
 
 #include <cbuild/cbuild.hpp>
-#include <filesystem>
+#include <toml++/toml.hpp>
 
 #include "path.cpp"
 
@@ -33,11 +34,30 @@ void listHelp() {
         "\thelp    - provides a list of commands\n"
         "\tbuild   - runs the project's build script\n"
         "\trun     - runs the project's build script then the routine outlined in the 'cbuild.toml'\n"
+        "\tclean   - cleans the project\n"
         "\tinstall - installs a package from the web\n"
     );
 }
 
-void build() {
+std::vector<std::string> semicolonSeparate(const std::string& str) {
+    std::vector<std::string> result;
+    std::string current;
+
+    for (char c : str) {
+        if (c == ';') {
+            result.push_back(current);
+            current.clear();
+        } else {
+            current += c;
+        }
+    }
+
+    result.push_back(current);
+
+    return result;
+}
+
+void build(toml::v3::ex::parse_result cbuild) {
     if (!fs::exists("./build.cpp")) {
         printf("No 'build.cpp' found in project\n");
         exit(0);
@@ -68,8 +88,21 @@ void build() {
 
     build.linkLibrary("cbuild");
 
-    // TODO: get from cbuild.toml
-    build.includeDirectory("include"); 
+    if (cbuild.find("build") != cbuild.end()) {
+
+        auto cbuildTable = cbuild["build"].as_table();
+
+        if (cbuildTable->find("include") != cbuildTable->end()) {
+            
+            std::vector<std::string> includeDirs = 
+                semicolonSeparate((*cbuildTable)["include"].as_string()->get());
+            
+            for (auto& include : includeDirs) {
+                printf("include: %s\n", include.c_str());
+                build.includeDirectory(include);
+            }
+        }
+    }
 
     build.compile();
 
@@ -96,12 +129,31 @@ void clean() {
     fs::remove_all("build");
 }
 
+void install(toml::v3::ex::parse_result cbuild, std::string alias) {
+    cbuild.insert_or_assign("dependencies", toml::array{
+        "cpptoml",
+        "toml11",
+        "Boost.TOML"
+    });
+
+    std::ofstream out("config.toml");
+    out << cbuild;
+    out.close();
+}
+
 int main(int argc, char* argv[]) {
 
     if (argc < 2) {
         printf("Expected an action run 'cbuild help' for a list of commands\n");
         return 0;
     }
+
+    if (!fs::exists("cbuild.toml")) {
+        printf("Could not find 'cbuild.toml'\n");
+        return 0;
+    }
+
+    auto cbuild = toml::parse_file("cbuild.toml");
 
     std::string action = argv[1];
 
@@ -115,7 +167,7 @@ int main(int argc, char* argv[]) {
             listHelp();
         } break;
         case Action::eBuild: {
-            build();
+            build(cbuild);
         } break;
         case Action::eRun: {
 
@@ -124,7 +176,12 @@ int main(int argc, char* argv[]) {
             clean();
         } break;
         case Action::eInstall: {
-
+            if (argc < 3) {
+                printf("Missing argument\n");
+                return 0;
+            }
+            std::string pack = argv[2];
+            install(cbuild, pack);
         } break;
     }
 }

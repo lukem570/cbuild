@@ -19,6 +19,7 @@ int build() {
     );
 
     cli.includeDirectory("include");
+    cli.includeDirectory("mod/toml/include");
     cli.linkLibrary("cbuild");
     cli.compile();
 

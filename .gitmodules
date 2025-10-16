@@ -1,0 +1,3 @@
+[submodule "mod/toml"]
+	path = mod/toml
+	url = https://github.com/lukem570/tomlplusplus-CB.git

@@ -34,6 +34,8 @@ namespace CBuild {
             command << options.compiler.includeDirectoryFlag << includedDirectory << " ";
         }
 
+        printf("%s\n", command.str().c_str());
+
         int ret = system(command.str().c_str());
         
         return ret;
