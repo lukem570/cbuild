@@ -279,11 +279,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (!fs::exists("cbuild.toml")) {
-        printf("Could not find 'cbuild.toml'\n");
-        return 0;
-    }
-
     std::string action = argv[1];
 
     if (actionMap.find(action) == actionMap.end()) {
