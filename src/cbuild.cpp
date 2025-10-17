@@ -1,5 +1,6 @@
 #include <cbuild/cbuild.hpp>
-
+#include <filesystem>
+namespace fs = std::filesystem;
 namespace CBuild {
 
     void Binary::includeDirectory(std::string path) {

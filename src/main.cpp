@@ -73,13 +73,16 @@ void makeDirectory(fs::path dir) {
         fs::create_directory(dir);
 }
 
-void copyBuild(const fs::path& from, const fs::path& to) {
+void copyBuild(const fs::path& from, const fs::path& to, bool sharedOnly = false) {
 
     for (const auto& entry : fs::directory_iterator(from)) {
 
         fs::path filename = entry.path().filename();
 
         if (filename.string()[0] == '.')
+            continue;
+
+        if (sharedOnly && filename.extension() != SHARED_LIB_EXT)
             continue;
 
         fs::path dest = to / filename;
@@ -98,7 +101,8 @@ void cloneRepo(std::string httpLink, fs::path path) {
     std::stringstream packagePull;
     packagePull << "git clone ";
     packagePull << httpLink << " ";
-    packagePull << path;
+    packagePull << path << " ";
+    packagePull << "--recursive ";
     packagePull << "> /dev/null 2>&1";
 
     int err = system(packagePull.str().c_str());
@@ -136,6 +140,7 @@ std::vector<PackageData> initPackages(fs::path root) {
         if (!nobuild) {
             build(packageRoot);
             copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR);
+            copyBuild(packageRoot / BUILD_DIR, root / CBUILD_DIR, true);
             printf("Built %s\n", target.data());
         }
 
@@ -150,7 +155,7 @@ std::vector<PackageData> initPackages(fs::path root) {
             
         if (cbuildPackageData->find("link") != cbuildPackageData->end() && !nobuild)
             for (auto link : semicolonSeparate(cbuildPackageData->get("link")->as_string()->get())) 
-                package.links.push_back(packageRoot / link);
+                package.links.push_back(link);
 
         ret.push_back(package);
     }
@@ -167,21 +172,23 @@ void build(fs::path root = "./") {
 
     ParsedToml cbuild = toml::parse_file((root / "cbuild.toml").string());
 
-    if (!fs::exists("./build.cpp")) {
+    if (!fs::exists(root / "build.cpp")) {
         printf("No 'build.cpp' found in project\n");
         exit(0);
     }
 
     fs::copy(
         removeExtension(getExecutablePath()) + "/libcbuild" SHARED_LIB_EXT, 
-        "./build/.cbuild",
+        root / CBUILD_DIR,
         fs::copy_options::overwrite_existing
     );
 
     CBuild::Shared build(
-        "./build.cpp", 
+        root / "build.cpp", 
         "build",
-        CBuild::CompileOptions{.output=CBUILD_DIR}
+        CBuild::CompileOptions{
+            .output=root / CBUILD_DIR
+        }
     );
 
     build.linkLibrary("cbuild");
@@ -200,7 +207,7 @@ void build(fs::path root = "./") {
 
     build.compile();
 
-    void* handle = loadLibrary((fs::path(CBUILD_DIR) / "libbuild" SHARED_LIB_EXT).c_str());
+    void* handle = loadLibrary((root / fs::path(CBUILD_DIR) / "libbuild" SHARED_LIB_EXT).c_str());
 
     if (!handle) {
         printf("Failed to load build shared library\n");
@@ -214,7 +221,10 @@ void build(fs::path root = "./") {
         exit(0);
     }
 
+    fs::path current = fs::current_path();
+    fs::current_path(root);
     buildFunc();
+    fs::current_path(current);
 
     freeLibrary(handle);
 }
