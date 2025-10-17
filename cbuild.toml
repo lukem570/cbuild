@@ -3,8 +3,3 @@ version="0.0.1"
 name="cbuild"
 description="Build system for c++"
 include="include"
-
-[build]
-cbuild="latest"
-
-[dependencies]

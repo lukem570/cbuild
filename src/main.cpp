@@ -112,33 +112,34 @@ std::vector<PackageData> initPackages(fs::path root) {
         bool nobuild = false;
 
         if (optionsTable->find("nobuild") != optionsTable->end())
-            nobuild = optionsTable[nobuild].as_boolean();
+            nobuild = optionsTable->get("nobuild")->as_boolean();
 
-        std::stringstream packagePull;
-        packagePull << "git clone ";
-        packagePull << httpLink << " ";
-        packagePull << packageRoot;
-        packagePull << "> /dev/null 2>&1";
+        if (!fs::exists(packageRoot)) {
+            std::stringstream packagePull;
+            packagePull << "git clone ";
+            packagePull << httpLink << " ";
+            packagePull << packageRoot;
+            packagePull << "> /dev/null 2>&1";
 
-        int err = system(packagePull.str().c_str());
+            int err = system(packagePull.str().c_str());
 
-        if (err) {
-            printf("Failed to clone %s\n", target.data());
-            exit(0);
+            if (err) {
+                printf("Failed to clone %s\n", target.data());
+                exit(0);
+            }
         }
 
         if (!nobuild) {
             build(packageRoot);
             copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR);
+            printf("Built %s\n", target.data());
         }
 
-        printf("Built %s\n", target.data());
-
-        ParsedToml cbuild = toml::parse((packageRoot / "cbuild.toml").string());
+        ParsedToml cbuild = toml::parse_file((packageRoot / "cbuild.toml").string());
         auto cbuildPackageData = cbuild["package"].as_table();
 
         PackageData package;
-        if (cbuildPackageData->find("inlcude") != cbuildPackageData->end())
+        if (cbuildPackageData->find("include") != cbuildPackageData->end())
             package.includes = semicolonSeparate(cbuildPackageData->get("include")->as_string()->get());
         if (cbuildPackageData->find("link") != cbuildPackageData->end() && !nobuild)
             package.includes = semicolonSeparate(cbuildPackageData->get("link")->as_string()->get());
@@ -190,7 +191,7 @@ void build(fs::path root = "./") {
 
     build.compile();
 
-    void* handle = loadLibrary("./build/.cbuild/libbuild" SHARED_LIB_EXT);
+    void* handle = loadLibrary((fs::path(CBUILD_DIR) / "libbuild" SHARED_LIB_EXT).c_str());
 
     if (!handle) {
         printf("Failed to load build shared library\n");
@@ -211,27 +212,6 @@ void build(fs::path root = "./") {
 
 void clean() {
     fs::remove_all(BUILD_DIR);
-}
-
-void copy_recursive(const fs::path& source, const fs::path& destination) {
-
-    if (!fs::exists(destination)) {
-        fs::create_directories(destination);
-    }
-
-    for (const auto& entry : fs::recursive_directory_iterator(source)) {
-        const auto& path = entry.path();
-        auto relative_path = fs::relative(path, source);
-        fs::path target_path = destination / relative_path;
-
-        
-        if (fs::is_directory(path)) {
-            fs::create_directories(target_path);
-        } else if (fs::is_regular_file(path)) {
-            fs::copy_file(path, target_path, fs::copy_options::overwrite_existing);
-        }
-        
-    }
 }
 
 void install(toml::v3::ex::parse_result cbuild, std::string link) {
