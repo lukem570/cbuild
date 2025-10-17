@@ -256,7 +256,7 @@ void install(std::string httpLink) {
 
 void init() {
     std::ofstream cbuild("cbuild.toml");
-    cbuild << "[packages]\n";
+    cbuild << "[package]\n";
     cbuild << "name=\"\"\n";
     cbuild << "version=\"0.0.1\"\n";
     cbuild << "description=\"\"\n";
