@@ -11,6 +11,7 @@
 #include "path.cpp"
 
 namespace fs = std::filesystem;
+using ParsedToml = toml::v3::ex::parse_result;
 
 enum class Action {
     eHelp,
@@ -57,27 +58,115 @@ std::vector<std::string> semicolonSeparate(const std::string& str) {
     return result;
 }
 
-void build(toml::v3::ex::parse_result cbuild) {
+void makeDirectory(fs::path dir) {
+    if (!fs::exists(dir))
+        fs::create_directory(dir);
+}
+
+#define BUILD_DIR "build/"
+#define CBUILD_DIR BUILD_DIR ".cbuild/"
+
+void copyBuild(const fs::path& from, const fs::path& to) {
+
+    for (const auto& entry : fs::recursive_directory_iterator(from)) {
+
+        fs::path filename = entry.path().filename();
+
+        if (filename.string()[0] == '.')
+            continue;
+
+        fs::path dest = to / filename;
+
+        if (fs::is_directory(entry.status())) {
+            fs::create_directories(dest);
+        } else if (fs::is_regular_file(entry.status())) {
+            fs::create_directories(dest.parent_path());
+            fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
+        }
+    }
+}
+
+void build(fs::path);
+
+struct PackageData {
+    std::vector<std::string> includes;
+    std::vector<std::string> links;
+};
+
+std::vector<PackageData> initPackages(fs::path root) {
+
+    if (!fs::exists(root / ".packages.toml")) {
+        return {};
+    }
+
+    ParsedToml packages = toml::parse_file((root / ".packages.toml").string());
+    std::vector<PackageData> ret;
+    ret.reserve(packages.size());
+
+    for (auto& [target, options] : packages) {
+
+        auto optionsTable = options.as_table();
+
+        fs::path packageRoot = root / CBUILD_DIR / target.data();
+        std::string httpLink = optionsTable->get("link")->as_string()->get();
+        bool nobuild = false;
+
+        if (optionsTable->find("nobuild") != optionsTable->end())
+            nobuild = optionsTable[nobuild].as_boolean();
+
+        std::stringstream packagePull;
+        packagePull << "git clone ";
+        packagePull << httpLink << " ";
+        packagePull << packageRoot;
+        packagePull << "> /dev/null 2>&1";
+
+        int err = system(packagePull.str().c_str());
+
+        if (err) {
+            printf("Failed to clone %s\n", target.data());
+            exit(0);
+        }
+
+        if (!nobuild) {
+            build(packageRoot);
+            copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR);
+        }
+
+        printf("Built %s\n", target.data());
+
+        ParsedToml cbuild = toml::parse((packageRoot / "cbuild.toml").string());
+        auto cbuildPackageData = cbuild["package"].as_table();
+
+        PackageData package;
+        if (cbuildPackageData->find("inlcude") != cbuildPackageData->end())
+            package.includes = semicolonSeparate(cbuildPackageData->get("include")->as_string()->get());
+        if (cbuildPackageData->find("link") != cbuildPackageData->end() && !nobuild)
+            package.includes = semicolonSeparate(cbuildPackageData->get("link")->as_string()->get());
+
+        ret.push_back(package);
+    }
+
+    return ret;
+}
+
+void build(fs::path root = "./") {
+
+    makeDirectory(root / BUILD_DIR);
+    makeDirectory(root / CBUILD_DIR);
+
+    std::vector<PackageData> packages = initPackages(root);
+
+    ParsedToml cbuild = toml::parse_file((root / "cbuild.toml").string());
+
     if (!fs::exists("./build.cpp")) {
         printf("No 'build.cpp' found in project\n");
         exit(0);
     }
 
-    if (!fs::exists("./build")) {
-        fs::create_directory("build");
-    }
-
-    if (!fs::exists("./build/.cbuild")) {
-        fs::create_directory("build/.cbuild");
-    }
-
-    if (fs::exists("./build/.cbuild/libcbuild" SHARED_LIB_EXT)) {
-        fs::remove("./build/.cbuild/libcbuild" SHARED_LIB_EXT);
-    }
-
     fs::copy(
         removeExtension(getExecutablePath()) + "/libcbuild" SHARED_LIB_EXT, 
-        "./build/.cbuild"
+        "./build/.cbuild",
+        fs::copy_options::overwrite_existing
     );
 
     CBuild::Shared build(
@@ -87,19 +176,15 @@ void build(toml::v3::ex::parse_result cbuild) {
     );
 
     build.linkLibrary("cbuild");
+    build.linkDirectory(root / BUILD_DIR);
 
-    if (cbuild.find("build") != cbuild.end()) {
+    for (auto& package : packages) {
+        for (auto& include : package.includes) {
+            build.includeDirectory(include);
+        }
 
-        auto cbuildTable = cbuild["build"].as_table();
-
-        if (cbuildTable->find("include") != cbuildTable->end()) {
-            
-            std::vector<std::string> includeDirs = 
-                semicolonSeparate((*cbuildTable)["include"].as_string()->get());
-            
-            for (auto& include : includeDirs) {
-                build.includeDirectory(include);
-            }
+        for (auto& link : package.links) {
+            build.linkLibrary(link);
         }
     }
 
@@ -125,9 +210,8 @@ void build(toml::v3::ex::parse_result cbuild) {
 }
 
 void clean() {
-    fs::remove_all("build");
+    fs::remove_all(BUILD_DIR);
 }
-
 
 void copy_recursive(const fs::path& source, const fs::path& destination) {
 
@@ -151,25 +235,15 @@ void copy_recursive(const fs::path& source, const fs::path& destination) {
 }
 
 void install(toml::v3::ex::parse_result cbuild, std::string link) {
+
+    printf("NOT IMPLEMENTED\n");
+    return;
     
     if (!fs::exists(".packages.toml")) {
         std::ofstream packagesFile(".packages.toml");
         packagesFile.close();
     }
-
-    std::stringstream packagePull;
-    packagePull << "git clone ";
-    packagePull << link << " ";
-    packagePull << "build/.cbuild/.temp > /dev/null 2>&1";
-
-    system(packagePull.str().c_str());
-
-    if (!fs::exists("build/.cbuild/.temp/cbuild.toml")) {
-        fs::remove_all("build/.cbuild/.temp");
-        printf("Package is not a cbuild project\n");
-        exit(0);
-    }
-
+    
     auto packages = toml::parse_file(".packages.toml");
 
     auto packageCbuild = toml::parse_file("build/.cbuild/.temp/cbuild.toml");
@@ -187,14 +261,6 @@ void install(toml::v3::ex::parse_result cbuild, std::string link) {
     packagesFile << "# Please do not edit :)\n\n";
     packagesFile << packages;
     packagesFile.close();
-
-    if (fs::exists("build/" + name)) {
-        fs::remove_all("build/" + name);
-    }
-
-    copy_recursive("build/.cbuild/.temp", "build/" + name);
-
-    fs::remove_all("build/.cbuild/.temp");
 }
 
 int main(int argc, char* argv[]) {
@@ -223,7 +289,7 @@ int main(int argc, char* argv[]) {
             listHelp();
         } break;
         case Action::eBuild: {
-            build(cbuild);
+            build();
         } break;
         case Action::eRun: {
 

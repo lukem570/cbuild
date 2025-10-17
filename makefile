@@ -21,5 +21,10 @@ $(BUILD)/.cbuild:
 $(BUILD):
 	mkdir build
 
+install:
+	install -m 0755 $(BUILD)/cbuild /usr/local/bin/
+	install -m 0644 $(BUILD)/libcbuild.so /usr/local/bin
+	ldconfig
+
 clean:
 	rm -rf $(BUILD)

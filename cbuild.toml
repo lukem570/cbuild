@@ -5,6 +5,6 @@ description="Build system for c++"
 include="include"
 
 [build]
-include="include"
+cbuild="latest"
 
 [dependencies]
