@@ -182,7 +182,7 @@ void build(fs::path root = "./") {
     CBuild::Shared build(
         "./build.cpp", 
         "build",
-        CBuild::CompileOptions{.output=CBUILD_COMPILE_LOCATION}
+        CBuild::CompileOptions{.output=CBUILD_DIR}
     );
 
     build.linkLibrary("cbuild");

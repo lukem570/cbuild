@@ -6,7 +6,7 @@
 #include <sstream>
 #include <cstdlib>
 
-#define CBUILD_COMPILE_LOCATION "./build/.cbuild/"
+#define CBUILD_COMPILE_LOCATION "./build/"
 
 #if defined(_WIN32) || defined(_WIN64)
     #define SHARED_LIB_EXT ".dll"
