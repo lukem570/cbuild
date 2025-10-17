@@ -6,3 +6,15 @@
 * git
 * g++ (or other compiler)
 
+## install
+
+```
+make
+sudo make install
+```
+
+## use
+
+```
+cbuild init
+```
