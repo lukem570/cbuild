@@ -6,7 +6,9 @@
 #include <sstream>
 #include <cstdlib>
 
-#define CBUILD_COMPILE_LOCATION "./build/"
+#define BUILD_DIR "build/"
+#define CBUILD_DIR BUILD_DIR ".cbuild/"
+#define TEMP_DIR CBUILD_DIR ".temp/"
 
 #if defined(_WIN32) || defined(_WIN64)
     #define SHARED_LIB_EXT ".dll"
@@ -63,7 +65,7 @@ namespace CBuild {
             int compile();        
         protected:
             std::vector<std::string> linkedLibraries;
-            std::vector<std::string> linkedDirectories = {CBUILD_COMPILE_LOCATION};
+            std::vector<std::string> linkedDirectories = {BUILD_DIR, CBUILD_DIR};
             std::vector<std::string> includedDirectories;
             std::string entry;
             std::string alias;

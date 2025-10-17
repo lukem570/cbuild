@@ -10,10 +10,6 @@
 
 #include "path.cpp"
 
-#define BUILD_DIR "build/"
-#define CBUILD_DIR BUILD_DIR ".cbuild/"
-#define TEMP_DIR CBUILD_DIR ".temp/"
-
 enum class Action {
     eHelp,
     eBuild,
@@ -187,6 +183,7 @@ void build(fs::path root = "./") {
 
     build.linkLibrary("cbuild");
     build.linkDirectory(root / BUILD_DIR);
+    build.linkDirectory(root / CBUILD_DIR);
 
     for (auto& package : packages) {
         for (auto& include : package.includes) {
