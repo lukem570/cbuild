@@ -261,7 +261,7 @@ void init() {
     cbuild << "version=\"0.0.1\"\n";
     cbuild << "description=\"\"\n";
 
-    std::ofstream build("cbuild.toml");
+    std::ofstream build("build.cpp");
     build << "#include <cbuild/cbuild.hpp>\n";
     build << "\n";
     build << "int build() {\n";
