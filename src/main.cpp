@@ -26,8 +26,8 @@ namespace fs = std::filesystem;
 using ParsedToml = toml::v3::ex::parse_result;
 
 struct PackageData {
-    std::vector<std::string> includes;
-    std::vector<std::string> links;
+    std::vector<fs::path> includes;
+    std::vector<fs::path> links;
 };
 
 void build(fs::path);
@@ -76,7 +76,7 @@ void makeDirectory(fs::path dir) {
 
 void copyBuild(const fs::path& from, const fs::path& to) {
 
-    for (const auto& entry : fs::recursive_directory_iterator(from)) {
+    for (const auto& entry : fs::directory_iterator(from)) {
 
         fs::path filename = entry.path().filename();
 
@@ -87,6 +87,7 @@ void copyBuild(const fs::path& from, const fs::path& to) {
 
         if (fs::is_directory(entry.status())) {
             fs::create_directories(dest);
+            copyBuild(dest, to);
         } else if (fs::is_regular_file(entry.status())) {
             fs::create_directories(dest.parent_path());
             fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
@@ -143,10 +144,14 @@ std::vector<PackageData> initPackages(fs::path root) {
         auto cbuildPackageData = cbuild["package"].as_table();
 
         PackageData package;
+
         if (cbuildPackageData->find("include") != cbuildPackageData->end())
-            package.includes = semicolonSeparate(cbuildPackageData->get("include")->as_string()->get());
+            for (auto include : semicolonSeparate(cbuildPackageData->get("include")->as_string()->get())) 
+                package.includes.push_back(packageRoot / include);
+            
         if (cbuildPackageData->find("link") != cbuildPackageData->end() && !nobuild)
-            package.includes = semicolonSeparate(cbuildPackageData->get("link")->as_string()->get());
+            for (auto link : semicolonSeparate(cbuildPackageData->get("link")->as_string()->get())) 
+                package.links.push_back(packageRoot / link);
 
         ret.push_back(package);
     }
