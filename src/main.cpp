@@ -270,6 +270,8 @@ void init() {
     build << "    \n";
     build << "    return 0;\n";
     build << "}";
+
+    install("https://github.com/lukem570/cbuild.git");
 }
 
 int main(int argc, char* argv[]) {
