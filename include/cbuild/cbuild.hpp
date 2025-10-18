@@ -48,7 +48,7 @@ namespace CBuild {
         std::string linkDirectoryFlag = "-L";
         std::string linkLibraryFlag = "-l";
         std::string standardFlag = "-std=";
-        std::string add = "-fPIC -Wall -Werror -Wl,-rpath,'$ORIGIN'";
+        std::string add = "-fPIC -Wall -Werror -Wl,-rpath,'$ORIGIN' -std=c++20";
     };
 
     struct CompileOptions {
