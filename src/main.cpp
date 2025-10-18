@@ -73,7 +73,7 @@ void makeDirectory(fs::path dir) {
         fs::create_directory(dir);
 }
 
-void copyBuild(const fs::path& from, const fs::path& to, bool sharedOnly = false) {
+void copyBuild(const fs::path& from, const fs::path& to, bool libOnly = false) {
 
     for (const auto& entry : fs::directory_iterator(from)) {
 
@@ -82,14 +82,16 @@ void copyBuild(const fs::path& from, const fs::path& to, bool sharedOnly = false
         if (filename.string()[0] == '.')
             continue;
 
-        if (sharedOnly && filename.extension() != SHARED_LIB_EXT)
+        if (libOnly && !fs::is_directory(entry.status()) &&
+            (filename.extension() != SHARED_LIB_EXT &&
+             filename.extension() != STATIC_LIB_EXT))
             continue;
 
         fs::path dest = to / filename;
 
         if (fs::is_directory(entry.status())) {
             fs::create_directories(dest);
-            copyBuild(dest, to);
+            copyBuild(from / filename, dest, libOnly);
         } else if (fs::is_regular_file(entry.status())) {
             fs::create_directories(dest.parent_path());
             fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
@@ -137,15 +139,8 @@ std::vector<PackageData> initPackages(fs::path root) {
         if (!fs::exists(packageRoot)) 
             cloneRepo(httpLink, packageRoot);
 
-        if (!nobuild) {
-            build(packageRoot);
-            copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR, true);
-            copyBuild(packageRoot / BUILD_DIR, root / CBUILD_DIR, true);
-            printf("Built %s\n", target.data());
-        }
-
-        ParsedToml cbuild = toml::parse_file((packageRoot / "cbuild.toml").string());
-        auto cbuildPackageData = cbuild["package"].as_table();
+        ParsedToml cbuildPackage = toml::parse_file((packageRoot / "cbuild.toml").string());
+        auto cbuildPackageData = cbuildPackage["package"].as_table();
 
         PackageData package;
 
@@ -157,6 +152,18 @@ std::vector<PackageData> initPackages(fs::path root) {
             for (auto link : semicolonSeparate(cbuildPackageData->get("link")->as_string()->get())) 
                 package.links.push_back(link);
 
+        if (!nobuild) {
+            build(packageRoot);
+
+
+            copyBuild(packageRoot / BUILD_DIR, root / LIB_DIR, true);
+            printf("Built %s\n", target.data());
+        }
+
+        for (auto& include : package.includes)
+            copyBuild(include, root / INCLUDE_DIR);
+
+
         ret.push_back(package);
     }
 
@@ -167,6 +174,8 @@ void build(fs::path root = "./") {
 
     makeDirectory(root / BUILD_DIR);
     makeDirectory(root / CBUILD_DIR);
+    makeDirectory(root / INCLUDE_DIR);
+    makeDirectory(root / LIB_DIR);
 
     std::vector<PackageData> packages = initPackages(root);
 
@@ -177,12 +186,6 @@ void build(fs::path root = "./") {
         exit(0);
     }
 
-    fs::copy(
-        removeExtension(getExecutablePath()) + "/libcbuild" SHARED_LIB_EXT, 
-        root / CBUILD_DIR,
-        fs::copy_options::overwrite_existing
-    );
-
     CBuild::Shared build(
         root / "build.cpp", 
         "build",
@@ -191,19 +194,9 @@ void build(fs::path root = "./") {
         }
     );
 
-    build.linkLibrary("cbuild");
-    build.linkDirectory(root / BUILD_DIR);
     build.linkDirectory(root / CBUILD_DIR);
-
-    for (auto& package : packages) {
-        for (auto& include : package.includes) {
-            build.includeDirectory(include);
-        }
-
-        for (auto& link : package.links) {
-            build.linkLibrary(link);
-        }
-    }
+    build.linkDirectory(root / LIB_DIR);
+    build.includeDirectory(root / INCLUDE_DIR);
 
     build.compile();
 
