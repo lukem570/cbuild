@@ -139,7 +139,7 @@ std::vector<PackageData> initPackages(fs::path root) {
 
         if (!nobuild) {
             build(packageRoot);
-            copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR);
+            copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR, true);
             copyBuild(packageRoot / BUILD_DIR, root / CBUILD_DIR, true);
             printf("Built %s\n", target.data());
         }
