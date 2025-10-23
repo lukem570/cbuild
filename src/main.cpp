@@ -333,6 +333,30 @@ void init() {
     install("https://github.com/lukem570/cbuild.git", true);
 }
 
+void run(std::string target) {
+    build();
+
+    printf("Running %s\n", target.c_str());
+
+    void* handle = loadLibrary((fs::path(CBUILD_DIR) / "libbuild" SHARED_LIB_EXT).c_str());
+
+    if (!handle) {
+        printf("Failed to load build shared library\n");
+        exit(0);
+    }
+
+    int (*runFunc)() = (int (*)())getFunctionFromLibrary(handle, target.c_str());
+
+    if (!runFunc) {
+        printf("Failed to load %s function\n", target.c_str());
+        exit(0);
+    }
+
+    runFunc();
+
+    freeLibrary(handle);
+}
+
 int main(int argc, char* argv[]) {
 
     if (argc < 2) {
@@ -355,7 +379,12 @@ int main(int argc, char* argv[]) {
             build();
         } break;
         case Action::eRun: {
-
+            if (argc < 3) {
+                printf("Missing run target\n");
+                return 0;
+            }
+            std::string target = argv[2];
+            run(target);
         } break;
         case Action::eClean: {
             clean();

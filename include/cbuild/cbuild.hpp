@@ -26,6 +26,8 @@
     #error "Unknown or unsupported platform. Please define SHARED_LIB_EXT and STATIC_LIB_EXT manually."
 #endif
 
+#define CBUILD_RUN extern "C"
+
 namespace CBuild {
 
     struct Context {
@@ -104,7 +106,7 @@ namespace CBuild {
 }
 
 #ifndef CLI_BUILD
-extern "C" int build(CBuild::Context context);
+CBUILD_RUN int build(CBuild::Context context);
 #endif
 
 #endif
