@@ -110,20 +110,6 @@ void cloneRepo(std::string httpLink, fs::path path) {
     }
 }
 
-void pullRepo(fs::path path) {
-    std::stringstream packagePull;
-    packagePull << "git pull ";
-    packagePull << path << " ";
-    packagePull << "> /dev/null 2>&1";
-
-    int err = system(packagePull.str().c_str());
-
-    if (err) {
-        printf("Failed to pull %s\n", path.filename().c_str());
-        exit(0);
-    }
-}
-
 struct PackageOptions {
     std::string httpLink;
     std::string target;
@@ -216,11 +202,9 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
             continue;
         }
 
-
         if (!fs::exists(packageRoot)) 
             cloneRepo(packOpt.httpLink, packageRoot);
-        else
-            pullRepo(packageRoot);
+
 
         ParsedToml cbuild = toml::parse_file((packageRoot / "cbuild.toml").string());
         PackageData packDat = generateData(cbuild, packageRoot, packOpt);
