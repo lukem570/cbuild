@@ -265,6 +265,8 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
         }
     );
 
+    build.linkDirectory(CBUILD_DIR);
+
     build.compile();
 
     void* handle = loadLibrary((root / fs::path(CBUILD_DIR) / "libbuild" SHARED_LIB_EXT).c_str());
@@ -280,6 +282,8 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
         printf("Failed to load build function\n");
         exit(0);
     }
+
+    mainContext.linkedDirectories.push_back(BUILD_DIR);
 
     fs::path current = fs::current_path();
     fs::current_path(root);
