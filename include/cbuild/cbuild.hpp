@@ -9,8 +9,6 @@
 #define BUILD_DIR "build/"
 #define CBUILD_DIR BUILD_DIR ".cbuild/"
 #define TEMP_DIR CBUILD_DIR ".temp/"
-#define INCLUDE_DIR CBUILD_DIR "include/"
-#define LIB_DIR CBUILD_DIR "lib/"
 
 #if defined(_WIN32) || defined(_WIN64)
     #define SHARED_LIB_EXT ".dll"
@@ -28,14 +26,12 @@
     #error "Unknown or unsupported platform. Please define SHARED_LIB_EXT and STATIC_LIB_EXT manually."
 #endif
 
-#ifndef CLI_BUILD
-extern "C" int build();
-#endif
-
 namespace CBuild {
 
     struct Context {
-        
+        std::vector<std::string> linkedLibraries;
+        std::vector<std::string> linkedDirectories;
+        std::vector<std::string> includedDirectories;
     };
 
     struct Compiler {
@@ -58,7 +54,13 @@ namespace CBuild {
 
     class Binary {
         public:
-            Binary(std::string entry, std::string alias, CompileOptions options = {}) : entry(entry), alias(alias), options(options) {}
+            Binary(Context context, std::string entry, std::string alias, CompileOptions options = {}) : 
+                linkedLibraries(context.linkedLibraries),
+                linkedDirectories(context.linkedDirectories),
+                includedDirectories(context.includedDirectories),
+                entry(entry), 
+                alias(alias), 
+                options(options) {}
 
             void includeDirectory(std::string path);
             void linkDirectory(std::string path);
@@ -67,8 +69,8 @@ namespace CBuild {
             int compile();        
         protected:
             std::vector<std::string> linkedLibraries;
-            std::vector<std::string> linkedDirectories = {BUILD_DIR, CBUILD_DIR, LIB_DIR};
-            std::vector<std::string> includedDirectories = {INCLUDE_DIR};
+            std::vector<std::string> linkedDirectories;
+            std::vector<std::string> includedDirectories;
             std::string entry;
             std::string alias;
             CompileOptions options;
@@ -78,7 +80,7 @@ namespace CBuild {
 
     class Shared : public Binary {
         public:
-            Shared(std::string entry, std::string alias, CompileOptions options = {}) : Binary(entry, alias, options) {}
+            Shared(Context context, std::string entry, std::string alias, CompileOptions options = {}) : Binary(context, entry, alias, options) {}
 
         private:
             std::string output() override;
@@ -86,7 +88,7 @@ namespace CBuild {
 
     class Static : public Binary {
         public:
-            Static(std::string entry, std::string alias, CompileOptions options = {}) : Binary(entry, alias, options) {}
+            Static(Context context, std::string entry, std::string alias, CompileOptions options = {}) : Binary(context, entry, alias, options) {}
 
         private:
             std::string output() override;
@@ -94,11 +96,15 @@ namespace CBuild {
 
     class Executable : public Binary {
         public:
-            Executable(std::string entry, std::string alias, CompileOptions options = {}) : Binary(entry, alias, options) {}
+            Executable(Context context, std::string entry, std::string alias, CompileOptions options = {}) : Binary(context, entry, alias, options) {}
 
         private:
             std::string output() override;
     };
 }
+
+#ifndef CLI_BUILD
+extern "C" int build(CBuild::Context context);
+#endif
 
 #endif

@@ -3,9 +3,10 @@
 #define ENTRY_LIB "src/cbuild.cpp"
 #define ENTRY_CLI "src/main.cpp"
 
-int build() {
+int build(CBuild::Context context) {
 
     CBuild::Shared shared (
+        context,
         ENTRY_LIB, 
         "cbuild"
     );
@@ -14,6 +15,7 @@ int build() {
     shared.compile();
 
     CBuild::Executable cli (
+        context,
         ENTRY_CLI,
         "cbuild"
     );

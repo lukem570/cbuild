@@ -22,11 +22,6 @@ enum class Action {
 namespace fs = std::filesystem;
 using ParsedToml = toml::v3::ex::parse_result;
 
-struct PackageData {
-    std::vector<fs::path> includes;
-    std::vector<fs::path> links;
-};
-
 void build(fs::path);
 
 std::unordered_map<std::string, Action> actionMap = {
@@ -115,69 +110,144 @@ void cloneRepo(std::string httpLink, fs::path path) {
     }
 }
 
-std::vector<PackageData> initPackages(fs::path root) {
+void pullRepo(fs::path path) {
+    std::stringstream packagePull;
+    packagePull << "git pull ";
+    packagePull << path << " ";
+    packagePull << "> /dev/null 2>&1";
 
-    if (!fs::exists(root / ".packages.toml")) {
-        return {};
+    int err = system(packagePull.str().c_str());
+
+    if (err) {
+        printf("Failed to pull %s\n", path.filename().c_str());
+        exit(0);
     }
-
-    ParsedToml packages = toml::parse_file((root / ".packages.toml").string());
-    std::vector<PackageData> ret;
-    ret.reserve(packages.size());
-
-    for (auto& [target, options] : packages) {
-
-        auto optionsTable = options.as_table();
-
-        fs::path packageRoot = root / CBUILD_DIR / target.data();
-        std::string httpLink = optionsTable->get("link")->as_string()->get();
-        bool nobuild = false;
-
-        if (optionsTable->find("nobuild") != optionsTable->end())
-            nobuild = optionsTable->get("nobuild")->as_boolean();
-
-        if (!fs::exists(packageRoot)) 
-            cloneRepo(httpLink, packageRoot);
-
-        ParsedToml cbuildPackage = toml::parse_file((packageRoot / "cbuild.toml").string());
-        auto cbuildPackageData = cbuildPackage["package"].as_table();
-
-        PackageData package;
-
-        if (cbuildPackageData->find("include") != cbuildPackageData->end())
-            for (auto include : semicolonSeparate(cbuildPackageData->get("include")->as_string()->get())) 
-                package.includes.push_back(packageRoot / include);
-            
-        if (cbuildPackageData->find("link") != cbuildPackageData->end() && !nobuild)
-            for (auto link : semicolonSeparate(cbuildPackageData->get("link")->as_string()->get())) 
-                package.links.push_back(link);
-
-        if (!nobuild) {
-            build(packageRoot);
-
-
-            copyBuild(packageRoot / BUILD_DIR, root / LIB_DIR, true);
-            printf("Built %s\n", target.data());
-        }
-
-        for (auto& include : package.includes)
-            copyBuild(include, root / INCLUDE_DIR);
-
-
-        ret.push_back(package);
-    }
-
-    return ret;
 }
 
-void build(fs::path root = "./") {
+struct PackageOptions {
+    std::string httpLink;
+    std::string target;
+    std::string version;
+    bool nobuild = false;
+};
+
+PackageOptions generateOptions(toml::v3::table& table) {
+    PackageOptions options;
+
+    if (table.find("link") == table.end()) {
+        printf("Package missing link.\n");
+        exit(0);
+    }
+
+    if (table.find("version") == table.end()) {
+        printf("Package missing version.\n");
+        exit(0);
+    }
+
+    if (table.find("target") == table.end()) {
+        printf("Package missing target.\n");
+        exit(0);
+    }
+
+    options.httpLink = table.get("link")->as_string()->get();
+    options.version  = table.get("version")->as_string()->get();
+    options.target   = table.get("target")->as_string()->get();
+
+    if (table.find("nobuild") != table.end())
+        options.nobuild = table.get("nobuild")->as_boolean();
+
+    return options;
+}
+
+struct PackageData {
+    std::vector<std::string> includes;
+    std::vector<std::string> links;
+    fs::path path;
+};
+
+PackageData generateData(ParsedToml& cbuild, fs::path& packageRoot, PackageOptions& packOpt) {
+    PackageData data;
+
+    auto packageData = cbuild["package"].as_table();
+
+    if (packageData->find("include") != packageData->end())
+        for (auto include : semicolonSeparate(packageData->get("include")->as_string()->get())) 
+            data.includes.push_back(packageRoot / include);
+        
+    if (packageData->find("link") != packageData->end() && !packOpt.nobuild)
+        for (auto link : semicolonSeparate(packageData->get("link")->as_string()->get())) 
+            data.links.push_back(link);
+
+    data.path = packageRoot;
+
+    return data;
+}
+
+void build(fs::path root = "./", std::unordered_map<std::string, PackageData> packages = {}) {
 
     makeDirectory(root / BUILD_DIR);
     makeDirectory(root / CBUILD_DIR);
-    makeDirectory(root / INCLUDE_DIR);
-    makeDirectory(root / LIB_DIR);
 
-    std::vector<PackageData> packages = initPackages(root);
+    CBuild::Context buildContext;
+    CBuild::Context mainContext;
+
+    if (!fs::exists(root / ".packages.toml"))
+        return;
+
+    ParsedToml packagesToml = toml::parse_file((root / ".packages.toml").string());
+
+    for (auto& [target, options] : packagesToml) {
+
+        std::string name = std::string(target.str());
+        
+        fs::path packageRoot = fs::path(CBUILD_DIR) / name;
+        PackageOptions packOpt = generateOptions(*options.as_table());
+
+        if (packages.find(name) != packages.end()) {
+            if (packOpt.target == "main") {
+                mainContext.linkedLibraries = packages[name].links;
+                mainContext.includedDirectories = packages[name].includes;
+                mainContext.linkedDirectories = {packages[name].path};
+            } else {
+                buildContext.linkedLibraries = packages[name].links;
+                buildContext.includedDirectories = packages[name].includes;
+                buildContext.linkedDirectories = {packages[name].path};
+            }
+            continue;
+        }
+
+
+        if (!fs::exists(packageRoot)) 
+            cloneRepo(packOpt.httpLink, packageRoot);
+        else
+            pullRepo(packageRoot);
+
+        ParsedToml cbuild = toml::parse_file((packageRoot / "cbuild.toml").string());
+        PackageData packDat = generateData(cbuild, packageRoot, packOpt);
+
+        if (!packOpt.nobuild) {
+            build(packageRoot, packages);
+
+            if (packOpt.target == "main") 
+                copyBuild(packageRoot / BUILD_DIR, root / BUILD_DIR, true);
+            else
+                copyBuild(packageRoot / BUILD_DIR, root / CBUILD_DIR, true);
+
+            printf("Built %s for %s\n", name.c_str(), packOpt.target.c_str());
+        }
+
+        packages[name] = packDat;
+
+        if (packOpt.target == "main") {
+            mainContext.linkedLibraries = packages[name].links;
+            mainContext.includedDirectories = packages[name].includes;
+            mainContext.linkedDirectories = {packages[name].path};
+        } else {
+            buildContext.linkedLibraries = packages[name].links;
+            buildContext.includedDirectories = packages[name].includes;
+            buildContext.linkedDirectories = {packages[name].path};
+        }
+    }
 
     ParsedToml cbuild = toml::parse_file((root / "cbuild.toml").string());
 
@@ -187,16 +257,13 @@ void build(fs::path root = "./") {
     }
 
     CBuild::Shared build(
+        buildContext,
         root / "build.cpp", 
         "build",
         CBuild::CompileOptions{
             .output=root / CBUILD_DIR
         }
     );
-
-    build.linkDirectory(root / CBUILD_DIR);
-    build.linkDirectory(root / LIB_DIR);
-    build.includeDirectory(root / INCLUDE_DIR);
 
     build.compile();
 
@@ -207,7 +274,7 @@ void build(fs::path root = "./") {
         exit(0);
     }
 
-    int (*buildFunc)() = (int (*)())getFunctionFromLibrary(handle, "build");
+    int (*buildFunc)(CBuild::Context context) = (int (*)(CBuild::Context))getFunctionFromLibrary(handle, "build");
 
     if (!buildFunc) {
         printf("Failed to load build function\n");
@@ -216,7 +283,7 @@ void build(fs::path root = "./") {
 
     fs::path current = fs::current_path();
     fs::current_path(root);
-    buildFunc();
+    buildFunc(mainContext);
     fs::current_path(current);
 
     freeLibrary(handle);
@@ -226,7 +293,7 @@ void clean() {
     fs::remove_all(BUILD_DIR);
 }
 
-void install(std::string httpLink) {
+void install(std::string httpLink, bool buildDep = false) {
     
     if (!fs::exists(".packages.toml")) {
         std::ofstream packagesFile(".packages.toml");
@@ -248,7 +315,8 @@ void install(std::string httpLink) {
 
     packages.insert_or_assign(name, toml::table{
         {"link", httpLink},
-        {"version", version}
+        {"version", version},
+        {"target", buildDep ? "build" : "main"},
     });
 
     std::ofstream packagesFile(".packages.toml");
@@ -267,14 +335,14 @@ void init() {
     std::ofstream build("build.cpp");
     build << "#include <cbuild/cbuild.hpp>\n";
     build << "\n";
-    build << "int build() {\n";
+    build << "int build(CBuild::Context context) {\n";
     build << "    \n";
     build << "    /* Build steps go here */\n";
     build << "    \n";
     build << "    return 0;\n";
     build << "}";
 
-    install("https://github.com/lukem570/cbuild.git");
+    install("https://github.com/lukem570/cbuild.git", true);
 }
 
 int main(int argc, char* argv[]) {
