@@ -222,13 +222,13 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
         PackageData packDat = generateData(cbuild, packageRoot, packOpt);
         
         if (packOpt.target == "main") {
-            mainContext.linkedLibraries = packDat.links;
-            mainContext.includedDirectories = packDat.includes;
-            mainContext.linkedDirectories = {packDat.path};
+            mainContext.linkedLibraries.insert(mainContext.linkedLibraries.end(), packDat.links.begin(), packDat.links.end());
+            mainContext.includedDirectories.insert(mainContext.includedDirectories.end(), packDat.includes.begin(), packDat.includes.end());
+            mainContext.linkedDirectories.push_back(packDat.path);
         } else {
-            buildContext.linkedLibraries = packDat.links;
-            buildContext.includedDirectories = packDat.includes;
-            buildContext.linkedDirectories = {packDat.path};
+            buildContext.linkedLibraries.insert(buildContext.linkedLibraries.end(), packDat.links.begin(), packDat.links.end());
+            buildContext.includedDirectories.insert(buildContext.includedDirectories.end(), packDat.includes.begin(), packDat.includes.end());
+            buildContext.linkedDirectories.push_back(packDat.path);
         }
 
         if (packages.find(name) != packages.end()) {
