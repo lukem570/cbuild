@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <filesystem>
+#include <chrono>
 
 #include <cbuild/cbuild.hpp>
 #include <toml++/toml.hpp>
@@ -20,6 +21,7 @@ enum class Action {
 };
 
 namespace fs = std::filesystem;
+namespace clk = std::chrono;
 using ParsedToml = toml::v3::ex::parse_result;
 
 void build(fs::path);
@@ -169,10 +171,35 @@ PackageData generateData(ParsedToml& cbuild, fs::path& packageRoot, PackageOptio
     return data;
 }
 
+int64_t lastEdit(fs::path root) {
+    fs::file_time_type latestTime;
+
+    bool firstFile = true;
+
+    for (auto& entry : fs::recursive_directory_iterator(root)) {
+        if (fs::is_regular_file(entry)) {
+            auto ftime = fs::last_write_time(entry);
+
+            if (firstFile || ftime > latestTime) {
+                latestTime = ftime;
+                firstFile = false;
+            }
+        }
+    }
+
+    auto sctp = clk::time_point_cast<clk::seconds>(latestTime - fs::file_time_type::clock::now() + clk::system_clock::now());
+    return sctp.time_since_epoch().count();
+}
+
 void build(fs::path root = "./", std::unordered_map<std::string, PackageData> packages = {}) {
 
     makeDirectory(root / BUILD_DIR);
     makeDirectory(root / CBUILD_DIR);
+
+    if (!fs::exists(fs::path(CBUILD_DIR) / ".build.toml"))
+        std::ofstream file(fs::path(CBUILD_DIR) / ".build.toml");
+    
+    ParsedToml buildToml = toml::parse_file((fs::path(CBUILD_DIR) / ".build.toml").string());
 
     CBuild::Context buildContext;
     CBuild::Context mainContext;
@@ -185,29 +212,37 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
     for (auto& [target, options] : packagesToml) {
 
         std::string name = std::string(target.str());
-        
         fs::path packageRoot = fs::path(CBUILD_DIR) / name;
         PackageOptions packOpt = generateOptions(*options.as_table());
 
+        if (!fs::exists(packageRoot)) 
+            cloneRepo(packOpt.httpLink, packageRoot);
+        
+        ParsedToml cbuild = toml::parse_file((packageRoot / "cbuild.toml").string());
+        PackageData packDat = generateData(cbuild, packageRoot, packOpt);
+        
+        if (packOpt.target == "main") {
+            mainContext.linkedLibraries = packDat.links;
+            mainContext.includedDirectories = packDat.includes;
+            mainContext.linkedDirectories = {packDat.path};
+        } else {
+            buildContext.linkedLibraries = packDat.links;
+            buildContext.includedDirectories = packDat.includes;
+            buildContext.linkedDirectories = {packDat.path};
+        }
+
         if (packages.find(name) != packages.end()) {
-            if (packOpt.target == "main") {
-                mainContext.linkedLibraries = packages[name].links;
-                mainContext.includedDirectories = packages[name].includes;
-                mainContext.linkedDirectories = {packages[name].path};
-            } else {
-                buildContext.linkedLibraries = packages[name].links;
-                buildContext.includedDirectories = packages[name].includes;
-                buildContext.linkedDirectories = {packages[name].path};
-            }
             continue;
         }
 
-        if (!fs::exists(packageRoot)) 
-            cloneRepo(packOpt.httpLink, packageRoot);
+        packages[name] = packDat;
+        
+        if (buildToml.find(name) != buildToml.end()) {
+            int64_t lastEditTime = lastEdit(packageRoot);
 
-
-        ParsedToml cbuild = toml::parse_file((packageRoot / "cbuild.toml").string());
-        PackageData packDat = generateData(cbuild, packageRoot, packOpt);
+            if (buildToml[name]["time"].as_integer()->get() >= lastEditTime) 
+                continue;
+        }
 
         if (!packOpt.nobuild) {
             build(packageRoot, packages);
@@ -218,20 +253,16 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
                 copyBuild(packageRoot / BUILD_DIR, root / CBUILD_DIR, true);
 
             printf("Built %s for %s\n", name.c_str(), packOpt.target.c_str());
-        }
 
-        packages[name] = packDat;
-
-        if (packOpt.target == "main") {
-            mainContext.linkedLibraries = packages[name].links;
-            mainContext.includedDirectories = packages[name].includes;
-            mainContext.linkedDirectories = {packages[name].path};
-        } else {
-            buildContext.linkedLibraries = packages[name].links;
-            buildContext.includedDirectories = packages[name].includes;
-            buildContext.linkedDirectories = {packages[name].path};
+            buildToml.insert_or_assign(name, toml::table{
+                {"time", clk::time_point_cast<clk::seconds>(clk::system_clock::now()).time_since_epoch().count()}
+            });
         }
     }
+
+    std::ofstream buildFile(fs::path(CBUILD_DIR) / ".build.toml");
+    buildFile << buildToml;
+    buildFile.close();
 
     ParsedToml cbuild = toml::parse_file((root / "cbuild.toml").string());
 
