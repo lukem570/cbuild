@@ -68,7 +68,7 @@ namespace CBuild {
             void includeDirectory(std::string path);
             void linkDirectory(std::string path);
             void linkLibrary(std::string alias);
-            void defines(std::string definition);
+            void define(std::string definition);
 
             int compile();        
         protected:

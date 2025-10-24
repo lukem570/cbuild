@@ -16,7 +16,7 @@ namespace CBuild {
         linkedLibraries.push_back(alias);
     }
 
-    void Binary::defines(std::string definition) {
+    void Binary::define(std::string definition) {
         definitions.push_back(definition);
     }
 
