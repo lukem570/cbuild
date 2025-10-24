@@ -159,8 +159,8 @@ PackageData generateData(ParsedToml& cbuild, fs::path& packageRoot, PackageOptio
     auto packageData = cbuild["package"].as_table();
 
     if (packageData->find("include") != packageData->end())
-        for (auto include : semicolonSeparate(packageData->get("include")->as_string()->get())) 
-            data.includes.push_back(packageRoot / include);
+        for (auto include : semicolonSeparate(packageData->get("include")->as_string()->get()))
+            data.includes.push_back(fs::current_path() / packageRoot / include);
         
     if (packageData->find("link") != packageData->end() && !packOpt.nobuild)
         for (auto link : semicolonSeparate(packageData->get("link")->as_string()->get())) 
