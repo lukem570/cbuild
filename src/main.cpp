@@ -73,7 +73,6 @@ void makeDirectory(fs::path dir) {
 void copyBuild(const fs::path& from, const fs::path& to, bool libOnly = false) {
 
     for (const auto& entry : fs::directory_iterator(from)) {
-
         fs::path filename = entry.path().filename();
 
         if (filename.string()[0] == '.')
@@ -81,19 +80,25 @@ void copyBuild(const fs::path& from, const fs::path& to, bool libOnly = false) {
 
         if (libOnly && !fs::is_directory(entry.status()) &&
             (filename.extension() != SHARED_LIB_EXT &&
-             filename.extension() != STATIC_LIB_EXT))
+             filename.extension() != STATIC_LIB_EXT &&
+             filename.extension() != ".spv"))
             continue;
 
         fs::path dest = to / filename;
 
         if (fs::is_directory(entry.status())) {
-            fs::create_directories(dest);
-            copyBuild(from / filename, dest, libOnly);
+            copyBuild(entry.path(), dest, libOnly);
+
+            if (fs::exists(dest) && fs::is_empty(dest))
+                fs::remove(dest);
         } else if (fs::is_regular_file(entry.status())) {
             fs::create_directories(dest.parent_path());
             fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
         }
     }
+
+    if (fs::exists(to) && fs::is_empty(to))
+        fs::remove(to);
 }
 
 void cloneRepo(std::string httpLink, fs::path path) {
