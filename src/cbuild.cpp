@@ -1,6 +1,7 @@
 #include <cbuild/cbuild.hpp>
 #include <filesystem>
 namespace fs = std::filesystem;
+
 namespace CBuild {
 
     void Binary::includeDirectory(std::string path) {
@@ -15,9 +16,13 @@ namespace CBuild {
         linkedLibraries.push_back(alias);
     }
 
+    void Binary::defines(std::string definition) {
+        definitions.push_back(definition);
+    }
+
     int Binary::compile() {
         std::stringstream command;
-
+        
         command << options.compiler.alias << " ";
         command << options.compiler.inputFlag << entry << " ";
         command << options.compiler.outputFlag << options.output << output() << " ";
@@ -33,6 +38,10 @@ namespace CBuild {
 
         for (auto& includedDirectory : includedDirectories) {
             command << options.compiler.includeDirectoryFlag << includedDirectory << " ";
+        }
+
+        for (auto& definition : definitions) {
+            command << options.compiler.defineFlag << definition << " ";
         }
 
         int ret = system(command.str().c_str());

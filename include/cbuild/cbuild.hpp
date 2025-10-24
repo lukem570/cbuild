@@ -46,7 +46,8 @@ namespace CBuild {
         std::string linkDirectoryFlag = "-L";
         std::string linkLibraryFlag = "-l";
         std::string standardFlag = "-std=";
-        std::string add = "-fPIC -Wall -Werror -Wl,-rpath,'$ORIGIN' -std=c++20";
+        std::string defineFlag = "-D";
+        std::string add = "-fPIC -Wall -Werror -Wl,-rpath,$ORIGIN -std=c++20";
     };
 
     struct CompileOptions {
@@ -67,12 +68,14 @@ namespace CBuild {
             void includeDirectory(std::string path);
             void linkDirectory(std::string path);
             void linkLibrary(std::string alias);
+            void defines(std::string definition);
 
             int compile();        
         protected:
             std::vector<std::string> linkedLibraries;
             std::vector<std::string> linkedDirectories;
             std::vector<std::string> includedDirectories;
+            std::vector<std::string> definitions;
             std::string entry;
             std::string alias;
             CompileOptions options;
