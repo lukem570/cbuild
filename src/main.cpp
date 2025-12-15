@@ -285,7 +285,7 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
         }
     );
 
-    build.linkDirectory(CBUILD_DIR);
+    build.linkDirectory(fs::current_path() / BUILD_DIR);
 
     build.compile();
 
@@ -303,7 +303,7 @@ void build(fs::path root = "./", std::unordered_map<std::string, PackageData> pa
         exit(0);
     }
 
-    mainContext.linkedDirectories.push_back(BUILD_DIR);
+    mainContext.linkedDirectories.push_back(fs::current_path() / BUILD_DIR);
 
     fs::path current = fs::current_path();
     fs::current_path(root);
