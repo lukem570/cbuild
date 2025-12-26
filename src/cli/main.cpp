@@ -4,12 +4,17 @@
 #include <filesystem>
 #include <fstream>
 
+#include "util/util.cpp"
+#include "preprocessor/preprocessor.cpp"
+
+#include "util/catlog.hpp"
+
 namespace fs = std::filesystem;
 
 int main(int argc, const char* argv[]) {
 
     if (argc < 2) {
-        Logger::debug(L"\e[1;31m[ERROR]  \e[0m Missing main file");
+        Logger::error(L"Missing main file");
         return -1;
     }
 
