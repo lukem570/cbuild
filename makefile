@@ -1,6 +1,6 @@
 BUILD=build
-ENTRY_LIB=src/cbuild.cpp
-ENTRY_CLI=src/main.cpp
+ENTRY_LIB=src/lib/cbuild.cpp
+ENTRY_CLI=src/cli/main.cpp
 INCLUDE=include
 TOML_INCLUDE=mod/toml/include
 
@@ -11,11 +11,6 @@ init: clean $(BUILD) $(BUILD)/.cbuild
 	
 	# make cbuild 
 	g++ $(ENTRY_CLI) -o $(BUILD)/cbuild -I$(INCLUDE) -I$(TOML_INCLUDE) -L$(BUILD) -lcbuild -Wl,-rpath=./$(BUILD)
-
-	cp build/libcbuild.so build/.cbuild/libcbuild.so
-	
-	# run the build step
-	./$(BUILD)/cbuild build
 
 $(BUILD)/.cbuild:
 	mkdir $(BUILD)/.cbuild
