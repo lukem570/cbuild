@@ -51,6 +51,17 @@ void Logger::error(std::wstring mesg) {
 
 
 /**
+ * @brief Prints a message with the fatal symbol
+ * @note Does terminate the program
+ */
+void Logger::fatal(std::wstring mesg) {
+    wprintf(L"\r\e[1;31m[FATAL]\e[0m %ls\n", mesg.c_str());
+    fflush(stdout);
+    exit(-1);
+}
+
+
+/**
  * @brief Constructs a new Logger object
  */
 Logger::Logger() {
@@ -79,7 +90,7 @@ Logger& Logger::getInstance() {
  */
 void Logger::printCat() {
     wprintf(L"\e[s");
-    wprintf(L"\r\e[%dA%ls", catHeight, cat2);
+    wprintf(L"\r\e[%dA%ls", catHeight, cat1);
     wprintf(L"\e[u");
 }
 

@@ -10,10 +10,14 @@
 
 #include <filesystem>
 #include <fstream>
+#include <memory>
+#include <ctime>
+#include <unordered_map>
 
 #include "../util/catlog.hpp"
 
 namespace fs = std::filesystem;
+
 
 class Preprocessor {
 public:
@@ -23,11 +27,6 @@ public:
 
     void define(const std::wstring& name, const std::wstring& value = L"");
     void undefine(const std::wstring& name);
-
-    std::wostringstream process(std::wistream& stream);
-
-private:
-    void handleMacro(const std::wstring& macro);
 };
 
 #endif

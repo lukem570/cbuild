@@ -45,6 +45,8 @@ public:
     static void success(std::wstring mesg);
     static void error(std::wstring mesg);
 
+    static void fatal(std::wstring mesg);
+
 private:
     static Logger* instance;
     std::size_t advance = 0;

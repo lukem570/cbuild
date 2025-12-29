@@ -6,7 +6,7 @@
 #warning testing2
 
 // TESTER
-/*
+/*/
 Tester 2
 */
 /* Tester 3 */
@@ -18,5 +18,5 @@ Tester 2
 #pragma test
 
 int main(void) {
-    printf("1 + 2 = %d\n", add(1, 2));
+    printf("1 + 2 = %d \n", add(1, 2)); \
 }
