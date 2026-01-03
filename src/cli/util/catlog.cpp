@@ -90,7 +90,7 @@ Logger& Logger::getInstance() {
  */
 void Logger::printCat() {
     wprintf(L"\e[s");
-    wprintf(L"\r\e[%dA%ls", catHeight, cat1);
+    wprintf(L"\r\e[%dA%ls", catHeight, cat2);
     wprintf(L"\e[u");
 }
 

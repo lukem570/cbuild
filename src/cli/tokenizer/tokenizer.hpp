@@ -18,10 +18,10 @@
 
 namespace fs = std::filesystem;
 
-#define each(var, cond) (               \
-    wchar_t var = stream.read();        \
-    !stream.eof() && cond;              \
-    stream.next(), (var = stream.read())\
+#define each(var, cond) (                \
+    wchar_t var = stream.read();         \
+    !stream.eof() && cond;               \
+    stream.next(), (var = stream.read()) \
 )
 
 struct Location {
@@ -39,17 +39,16 @@ struct Location {
     std::wstring filename;
     std::size_t line = 1;
     std::size_t col  = 1;
+    bool firstOnLine = false;
 };
 
 enum class TokenType {
-    eHeaderName,
     eIdentifier,
     eNumber,
     eCharacter,
     eString,
     eOperator,
     eEOF,
-    eUnknown,
 };
 
 struct Token {
@@ -122,6 +121,10 @@ public:
         std::getline(file, line);
 
         return line;
+    }
+
+    void setNewLine(bool newline) {
+        location.firstOnLine = newline;
     }
 
     const Location& getLocation() { return location; }

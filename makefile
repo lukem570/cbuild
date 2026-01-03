@@ -4,7 +4,7 @@ ENTRY_CLI=src/cli/main.cpp
 INCLUDE=include
 TOML_INCLUDE=mod/toml/include
 
-init: clean $(BUILD) $(BUILD)/.cbuild
+compile: clean $(BUILD) $(BUILD)/.cbuild
 
 	# make the cbuild shared lib
 	g++ -shared $(ENTRY_LIB) -o $(BUILD)/libcbuild.so -I$(INCLUDE) -fPIC

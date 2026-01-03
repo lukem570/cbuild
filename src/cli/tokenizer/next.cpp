@@ -24,7 +24,12 @@ void Tokenizer::skipWhitespace() {
  */
 Token Tokenizer::getNext() {
 
+    std::size_t startLine = stream.getLocation().line;
+
     skipWhitespace();
+
+    std::size_t endLine = stream.getLocation().line;
+    stream.setNewLine(startLine != endLine);
 
     if (stream.eof())
         return Token(stream.getLocation(), TokenType::eEOF);
@@ -44,8 +49,7 @@ Token Tokenizer::getNext() {
     if (isOperatorChar(stream.read()))
         return handleOperator();
     
-    std::wstring value;
-    value = stream.read();
-    return Token(stream.getLocation(), TokenType::eUnknown, value);
+    fatal(stream.getLocation(), L"Unknown token '" + towstring(stream.read()) + L"'");
+    return Token();
 }
 
